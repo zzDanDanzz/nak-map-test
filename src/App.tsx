@@ -12,16 +12,22 @@ import {
 } from "react-map-gl";
 import { TileStyles } from "./types";
 
-const defaults = {
+type ConfigType = {
+  mapStyle: "https://dev.map.ir/vector/styles/main/mapir-xyz-light-style.json";
+  tileStyle: "";
+  fromCache: false;
+};
+
+const defaults: ConfigType = {
   mapStyle: "https://dev.map.ir/vector/styles/main/mapir-xyz-light-style.json",
   tileStyle: "",
+  fromCache: false,
 };
 
 function App() {
   const [config, setConfig] = useState(defaults);
   const [layerID, setLayerID] = useState<string>();
   const { mainMap } = useMap();
-  console.log("🚀 ~ file: App.tsx:21 ~ App ~ mainMap:", mainMap);
 
   function onSubmit(
     e: FormEvent & { target: FormEvent["target"] & { elements?: unknown } }
@@ -30,13 +36,17 @@ function App() {
     const {
       mapStyle: { value: mapStyle },
       tileStyle: { value: tileStyle },
+      fromCache: { checked: fromCache },
     } = e.target.elements as never;
 
-    setConfig({ mapStyle, tileStyle });
+    const newConfig = { mapStyle, tileStyle, fromCache };
+
+    console.log("🚀 ~ file: App.tsx:44 ~ App ~ newConfig:", newConfig)
+    setConfig(newConfig);
   }
 
   const dumpToConsole = () => {
-    if (!layerID) return
+    if (!layerID) return;
     const featuers = mainMap?.queryRenderedFeatures(undefined, {
       layers: [layerID],
     });
@@ -58,6 +68,7 @@ function App() {
                 defaultValue={defaults.mapStyle}
               />
             </div>
+
             <div className="flex gap-2 basis-1/3">
               <label htmlFor="tileStyle">tile style url:</label>
               <input
@@ -68,17 +79,18 @@ function App() {
               />
             </div>
             <input type="submit" value="Submit" />
+
+            <input
+              type="checkbox"
+              name="fromCache"
+              defaultChecked={defaults.fromCache}
+            />
+            <label htmlFor="fromCache">with ?data_from_cache=true</label>
           </fieldset>
         </form>
         <button onClick={dumpToConsole}>queryRenderedFeatures</button>
       </div>
-      {config.tileStyle && (
-        <OptimizedMap
-          mapStyle={config.mapStyle}
-          tileStyle={config.tileStyle}
-          setLayerID={setLayerID}
-        />
-      )}
+      {config.tileStyle && <OptimizedMap setLayerID={setLayerID} {...config} />}
     </div>
   );
 }
@@ -86,10 +98,9 @@ function App() {
 const OptimizedMap = ({
   mapStyle,
   tileStyle,
+  fromCache,
   setLayerID,
-}: {
-  mapStyle: string;
-  tileStyle: string;
+}: ConfigType & {
   setLayerID: React.Dispatch<React.SetStateAction<string | undefined>>;
 }) => {
   const [sourceProps, setSourceProps] = useState<SourceProps>();
@@ -116,6 +127,18 @@ const OptimizedMap = ({
         source,
         "source-layer": sourceLayer,
         type: "circle",
+
+        // paint: {
+        //   "circle-color": [
+        //     "rgb",
+        //     // red is higher when feature.properties.temperature is higher
+        //     ["get", "rxlevel"],
+        //     // green is always zero
+        //     0,
+        //     // blue is higher when feature.properties.temperature is lower
+        //     ["-", 100, ["get", "rxlevel"]],
+        //   ],
+        // },
       });
     };
 
@@ -145,7 +168,9 @@ const OptimizedMap = ({
       transformRequest={(url) => {
         if (url.includes("tile/layers")) {
           const parts = url.split("tile/layers");
-          url = `${viewPublicBase}/tile/layers${parts[1]}`;
+          url = `${viewPublicBase}/tile/layers${parts[1]}${
+            fromCache ? "?data_from_cache=true" : ""
+          }`;
         }
         return {
           url,
