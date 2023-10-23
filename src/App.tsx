@@ -1,16 +1,27 @@
 import "mapbox-gl/dist/mapbox-gl.css";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import constants from "./constants";
-import { CircleLayer, Layer, Map, Source, SourceProps } from "react-map-gl";
+import {
+  CircleLayer,
+  Layer,
+  Map,
+  MapProvider,
+  Source,
+  SourceProps,
+  useMap,
+} from "react-map-gl";
+import { TileStyles } from "./types";
 
 const defaults = {
   mapStyle: "https://dev.map.ir/vector/styles/main/mapir-xyz-light-style.json",
   tileStyle: "",
-  viewPublicBase: "",
 };
 
 function App() {
   const [config, setConfig] = useState(defaults);
+  const [layerID, setLayerID] = useState<string>();
+  const { mainMap } = useMap();
+  console.log("🚀 ~ file: App.tsx:21 ~ App ~ mainMap:", mainMap);
 
   function onSubmit(
     e: FormEvent & { target: FormEvent["target"] & { elements?: unknown } }
@@ -19,11 +30,18 @@ function App() {
     const {
       mapStyle: { value: mapStyle },
       tileStyle: { value: tileStyle },
-      viewPublicBase: { value: viewPublicBase },
     } = e.target.elements as never;
 
-    setConfig({ mapStyle, tileStyle, viewPublicBase });
+    setConfig({ mapStyle, tileStyle });
   }
+
+  const dumpToConsole = () => {
+    if (!layerID) return
+    const featuers = mainMap?.queryRenderedFeatures(undefined, {
+      layers: [layerID],
+    });
+    console.log("🚀 dumping rendered features:", featuers);
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -49,25 +67,16 @@ function App() {
                 defaultValue={defaults.tileStyle}
               />
             </div>
-            <div className="flex gap-2 basis-1/3">
-              <label htmlFor="viewPublicBase">view public base url:</label>
-              <input
-                className="flex-grow"
-                type="text"
-                name="viewPublicBase"
-                defaultValue={defaults.viewPublicBase}
-              />
-            </div>
-
             <input type="submit" value="Submit" />
           </fieldset>
         </form>
+        <button onClick={dumpToConsole}>queryRenderedFeatures</button>
       </div>
-      {config.viewPublicBase && (
+      {config.tileStyle && (
         <OptimizedMap
           mapStyle={config.mapStyle}
           tileStyle={config.tileStyle}
-          viewPublicBase={config.viewPublicBase}
+          setLayerID={setLayerID}
         />
       )}
     </div>
@@ -77,11 +86,11 @@ function App() {
 const OptimizedMap = ({
   mapStyle,
   tileStyle,
-  viewPublicBase,
+  setLayerID,
 }: {
   mapStyle: string;
   tileStyle: string;
-  viewPublicBase: string;
+  setLayerID: React.Dispatch<React.SetStateAction<string | undefined>>;
 }) => {
   const [sourceProps, setSourceProps] = useState<SourceProps>();
   const [circleLayer, setCircleLayer] = useState<CircleLayer>();
@@ -100,21 +109,27 @@ const OptimizedMap = ({
         setSourceProps({ id, ...srcDef });
       });
 
-      const layer = data.layers[0];
-
+      const { id, source, "source-layer": sourceLayer } = data.layers[0];
+      setLayerID(id);
       setCircleLayer({
-        id: layer.id,
-        source: layer.source,
-        "source-layer": layer["source-layer"],
+        id,
+        source,
+        "source-layer": sourceLayer,
         type: "circle",
       });
     };
 
     fetchTileStyles();
+  }, [setLayerID, tileStyle]);
+
+  const viewPublicBase = useMemo(() => {
+    const baseUrl = tileStyle.split("mym/styles")[0] as string;
+    return baseUrl;
   }, [tileStyle]);
 
   return (
     <Map
+      id="mainMap"
       initialViewState={{
         longitude: 51.414178828767945,
         latitude: 35.68490079732125,
@@ -140,6 +155,7 @@ const OptimizedMap = ({
           },
         };
       }}
+      hash
     >
       {sourceProps && viewPublicBase && (
         <Source {...sourceProps}>
@@ -150,33 +166,12 @@ const OptimizedMap = ({
   );
 };
 
-export default App;
+const AppWithProviders = () => {
+  return (
+    <MapProvider>
+      <App />
+    </MapProvider>
+  );
+};
 
-interface TileStyles {
-  sources: Sources;
-  layers: ILayer[];
-}
-
-interface Sources {
-  mym_709aa156c2c5c376a1e5eed14b782f68_7: Mym;
-}
-
-interface Mym {
-  type: string;
-  tiles: string[];
-}
-
-interface ILayer {
-  id: string;
-  source: string;
-  "source-layer": string;
-  type: string;
-  paint: Paint;
-}
-
-interface Paint {
-  "circle-stroke-color": string;
-  "circle-stroke-width": number;
-  "circle-color": string;
-  "circle-opacity": number;
-}
+export default AppWithProviders;
