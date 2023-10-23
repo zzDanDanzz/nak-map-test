@@ -41,7 +41,6 @@ function App() {
 
     const newConfig = { mapStyle, tileStyle, fromCache };
 
-    console.log("🚀 ~ file: App.tsx:44 ~ App ~ newConfig:", newConfig)
     setConfig(newConfig);
   }
 
@@ -127,18 +126,25 @@ const OptimizedMap = ({
         source,
         "source-layer": sourceLayer,
         type: "circle",
-
-        // paint: {
-        //   "circle-color": [
-        //     "rgb",
-        //     // red is higher when feature.properties.temperature is higher
-        //     ["get", "rxlevel"],
-        //     // green is always zero
-        //     0,
-        //     // blue is higher when feature.properties.temperature is lower
-        //     ["-", 100, ["get", "rxlevel"]],
-        //   ],
-        // },
+        paint: {
+          "circle-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "rxlevel"],
+            -100,
+            "#7FFF00",
+            -75,
+            "#DC143C",
+            -50,
+            "#008b74",
+            -25,
+            "#ff009d",
+            -0,
+            "#00eeff",
+            100,
+            "red",
+          ],
+        },
       });
     };
 
