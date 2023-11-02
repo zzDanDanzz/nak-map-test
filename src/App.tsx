@@ -1,5 +1,6 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import "mapbox-gl/dist/mapbox-gl.css";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleLayer,
   Layer,
@@ -29,10 +30,6 @@ function App() {
   const [config, setConfig] = useImmer(defaults);
   const [layerID, setLayerID] = useState<string>();
   const { mainMap } = useMap();
-
-  useEffect(() => {
-    console.log({ config });
-  }, [config]);
 
   const dumpToConsole = () => {
     if (!layerID) return;
@@ -107,6 +104,11 @@ const OptimizedMap = ({
   const [sourceProps, setSourceProps] = useState<SourceProps>();
   const [circleLayer, setCircleLayer] = useState<CircleLayer>();
 
+  const baseUrl = useMemo(
+    () => tileStyle.split("mym/styles")[0] as string,
+    [tileStyle]
+  );
+
   useEffect(() => {
     if (tileStyle === "") return;
 
@@ -124,7 +126,6 @@ const OptimizedMap = ({
           return;
         }
         const parts = url.split("tile/layers");
-        const baseUrl = tileStyle.split("mym/styles")[0] as string;
         const tileUrl = `${baseUrl}/tile/layers${parts[1]}${
           fromCache ? "?data_from_cache=true" : ""
         }`;
@@ -140,41 +141,42 @@ const OptimizedMap = ({
         type: "circle",
         paint: {
           "circle-color": [
-            "interpolate",
-            ["linear"],
-            ["get", "rxlevel"],
-            -100,
-            "#7FFF00",
-            -75,
-            "#DC143C",
-            -50,
-            "#008b74",
-            -25,
-            "#ff009d",
-            -0,
-            "#00eeff",
-            100,
-            "red",
+            "case",
+            ["has", "rxlevel"],
+            [
+              "interpolate",
+              ["linear"],
+              ["get", "rxlevel"],
+              -100,
+              "#7FFF00",
+              -75,
+              "#DC143C",
+              -50,
+              "#008b74",
+              -25,
+              "#ff009d",
+              -0,
+              "#00eeff",
+              100,
+              "red",
+            ],
+            "black",
           ],
         },
       });
     };
 
     fetchTileStyles();
-  }, [fromCache, setLayerID, tileStyle]);
+  }, [baseUrl, fromCache, setLayerID, tileStyle]);
 
-
-  const transformRequest = useCallback(
-    (url: string) => {
-      return {
-        url,
-        headers: {
-          "x-api-key": constants.headers["x-api-key"],
-        },
-      };
-    },
-    []
-  );
+  const transformRequest = useCallback((url: string) => {
+    return {
+      url,
+      headers: {
+        "x-api-key": constants.headers["x-api-key"],
+      },
+    };
+  }, []);
 
   return (
     <Map
@@ -184,7 +186,10 @@ const OptimizedMap = ({
         latitude: 35.68490079732125,
         zoom: 11,
       }}
-      onLoad={(e) => console.log(e)}
+      onLoad={(e) => {
+        console.log(`map: `, e.target);
+        e.target.showTileBoundaries = true;
+      }}
       mapStyle={mapStyle}
       style={{
         flexGrow: 1,
@@ -193,6 +198,22 @@ const OptimizedMap = ({
       }}
       transformRequest={transformRequest}
       hash
+      collectResourceTiming
+      onData={(e) => {
+        if (e.dataType === "source" && e.tile) {
+          const resourceTiming = e.tile.resourceTiming?.[0];
+          if (resourceTiming) {
+            if (resourceTiming.name.includes(baseUrl)) {
+              const { x, y, z } = e.tile.tileID.canonical;
+              console.log(
+                `it took ${Math.round(
+                  resourceTiming.duration
+                )} ms to fetch {z}/{y}/{x}:{${z}}/{${x}}/{${y}}`
+              );
+            }
+          }
+        }
+      }}
     >
       {sourceProps && (
         <Source {...sourceProps}>
