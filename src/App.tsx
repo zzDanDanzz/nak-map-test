@@ -1,6 +1,5 @@
 import "mapbox-gl/dist/mapbox-gl.css";
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import constants from "./constants";
+import { useCallback, useEffect, useState } from "react";
 import {
   CircleLayer,
   Layer,
@@ -10,12 +9,14 @@ import {
   SourceProps,
   useMap,
 } from "react-map-gl";
+import { useImmer } from "use-immer";
+import constants from "./constants";
 import { TileStyles } from "./types";
 
 type ConfigType = {
-  mapStyle: "https://dev.map.ir/vector/styles/main/mapir-xyz-light-style.json";
-  tileStyle: "";
-  fromCache: false;
+  mapStyle: string;
+  tileStyle: string;
+  fromCache: boolean;
 };
 
 const defaults: ConfigType = {
@@ -25,24 +26,13 @@ const defaults: ConfigType = {
 };
 
 function App() {
-  const [config, setConfig] = useState(defaults);
+  const [config, setConfig] = useImmer(defaults);
   const [layerID, setLayerID] = useState<string>();
   const { mainMap } = useMap();
 
-  function onSubmit(
-    e: FormEvent & { target: FormEvent["target"] & { elements?: unknown } }
-  ) {
-    e.preventDefault();
-    const {
-      mapStyle: { value: mapStyle },
-      tileStyle: { value: tileStyle },
-      fromCache: { checked: fromCache },
-    } = e.target.elements as never;
-
-    const newConfig = { mapStyle, tileStyle, fromCache };
-
-    setConfig(newConfig);
-  }
+  useEffect(() => {
+    console.log({ config });
+  }, [config]);
 
   const dumpToConsole = () => {
     if (!layerID) return;
@@ -55,38 +45,50 @@ function App() {
   return (
     <div className="flex flex-col h-full">
       <div className="">
-        <form onSubmit={onSubmit}>
-          <fieldset className="flex flex-wrap gap-2">
-            <legend>Config</legend>
-            <div className="flex gap-2 basis-1/3">
-              <label htmlFor="mapStyle">map style url:</label>
-              <input
-                className="flex-grow"
-                type="text"
-                name="mapStyle"
-                defaultValue={defaults.mapStyle}
-              />
-            </div>
-
-            <div className="flex gap-2 basis-1/3">
-              <label htmlFor="tileStyle">tile style url:</label>
-              <input
-                className="flex-grow"
-                type="text"
-                name="tileStyle"
-                defaultValue={defaults.tileStyle}
-              />
-            </div>
-            <input type="submit" value="Submit" />
-
+        <fieldset className="flex flex-wrap gap-2">
+          <legend>Config</legend>
+          <div className="flex gap-2 basis-1/3">
+            <label htmlFor="mapStyle">map style url:</label>
             <input
-              type="checkbox"
-              name="fromCache"
-              defaultChecked={defaults.fromCache}
+              className="flex-grow"
+              type="text"
+              name="mapStyle"
+              value={config.mapStyle}
+              onChange={(e) =>
+                setConfig((c) => {
+                  c.mapStyle = e.target.value;
+                })
+              }
             />
-            <label htmlFor="fromCache">with ?data_from_cache=true</label>
-          </fieldset>
-        </form>
+          </div>
+
+          <div className="flex gap-2 basis-1/3">
+            <label htmlFor="tileStyle">tile style url:</label>
+            <input
+              className="flex-grow"
+              type="text"
+              name="tileStyle"
+              value={config.tileStyle}
+              onChange={(e) =>
+                setConfig((c) => {
+                  c.tileStyle = e.target.value;
+                })
+              }
+            />
+          </div>
+
+          <input
+            type="checkbox"
+            name="fromCache"
+            checked={config.fromCache}
+            onChange={(e) =>
+              setConfig((c) => {
+                c.fromCache = e.target.checked;
+              })
+            }
+          />
+          <label htmlFor="fromCache">with ?data_from_cache=true</label>
+        </fieldset>
         <button onClick={dumpToConsole}>queryRenderedFeatures</button>
       </div>
       {config.tileStyle && <OptimizedMap setLayerID={setLayerID} {...config} />}
@@ -116,7 +118,17 @@ const OptimizedMap = ({
       });
       const data = (await res.json()) as TileStyles;
       Object.entries(data.sources).map(([id, srcDef]) => {
-        setSourceProps({ id, ...srcDef });
+        const url = srcDef.tiles?.[0];
+        if (!url) {
+          console.error("NO TILE URL");
+          return;
+        }
+        const parts = url.split("tile/layers");
+        const baseUrl = tileStyle.split("mym/styles")[0] as string;
+        const tileUrl = `${baseUrl}/tile/layers${parts[1]}${
+          fromCache ? "?data_from_cache=true" : ""
+        }`;
+        setSourceProps({ id, type: "vector", tiles: [tileUrl] });
       });
 
       const { id, source, "source-layer": sourceLayer } = data.layers[0];
@@ -149,12 +161,20 @@ const OptimizedMap = ({
     };
 
     fetchTileStyles();
-  }, [setLayerID, tileStyle]);
+  }, [fromCache, setLayerID, tileStyle]);
 
-  const viewPublicBase = useMemo(() => {
-    const baseUrl = tileStyle.split("mym/styles")[0] as string;
-    return baseUrl;
-  }, [tileStyle]);
+
+  const transformRequest = useCallback(
+    (url: string) => {
+      return {
+        url,
+        headers: {
+          "x-api-key": constants.headers["x-api-key"],
+        },
+      };
+    },
+    []
+  );
 
   return (
     <Map
@@ -171,24 +191,10 @@ const OptimizedMap = ({
         width: "100%",
         height: "100%",
       }}
-      transformRequest={(url) => {
-        if (url.includes("tile/layers")) {
-          const parts = url.split("tile/layers");
-          url = `${viewPublicBase}/tile/layers${parts[1]}${
-            fromCache ? "?data_from_cache=true" : ""
-          }`;
-        }
-        return {
-          url,
-          method: "GET",
-          headers: {
-            "x-api-key": constants.headers["x-api-key"],
-          },
-        };
-      }}
+      transformRequest={transformRequest}
       hash
     >
-      {sourceProps && viewPublicBase && (
+      {sourceProps && (
         <Source {...sourceProps}>
           <Layer {...circleLayer} />
         </Source>
