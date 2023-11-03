@@ -1,18 +1,22 @@
 /* eslint-disable @typescript-eslint/ban-ts-comment */
+import { useSetAtom } from "jotai";
 import "mapbox-gl/dist/mapbox-gl.css";
+
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   CircleLayer,
   Layer,
-  Map,
   MapProvider,
+  Map as ReactMapGl,
   Source,
   SourceProps,
   useMap,
 } from "react-map-gl";
 import { useImmer } from "use-immer";
+import { loggingAtom } from "./atoms";
 import constants from "./constants";
 import { TileStyles } from "./types";
+import Logger from "./components/logger";
 
 type ConfigType = {
   mapStyle: string;
@@ -28,81 +32,75 @@ const defaults: ConfigType = {
 
 function App() {
   const [config, setConfig] = useImmer(defaults);
-  const [layerID, setLayerID] = useState<string>();
   const { mainMap } = useMap();
 
   const dumpToConsole = () => {
-    if (!layerID) return;
     const featuers = mainMap?.queryRenderedFeatures(undefined, {
-      layers: [layerID],
+      layers: ["nak-layer"],
     });
     console.log("🚀 dumping rendered features:", featuers);
   };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="">
-        <fieldset className="flex flex-wrap gap-2">
-          <legend>Config</legend>
-          <div className="flex gap-2 basis-1/3">
-            <label htmlFor="mapStyle">map style url:</label>
+    <div className="flex w-full h-full">
+      <div className="flex flex-col h-full basis-10/12">
+        <div>
+          <fieldset className="flex flex-wrap gap-2">
+            <legend>Config</legend>
+            <div className="flex gap-2 basis-1/3">
+              <label htmlFor="mapStyle">map style url:</label>
+              <input
+                className="flex-grow"
+                type="text"
+                name="mapStyle"
+                value={config.mapStyle}
+                onChange={(e) =>
+                  setConfig((c) => {
+                    c.mapStyle = e.target.value;
+                  })
+                }
+              />
+            </div>
+            <div className="flex gap-2 basis-1/3">
+              <label htmlFor="tileStyle">tile style url:</label>
+              <input
+                className="flex-grow"
+                type="text"
+                name="tileStyle"
+                value={config.tileStyle}
+                onChange={(e) =>
+                  setConfig((c) => {
+                    c.tileStyle = e.target.value;
+                  })
+                }
+              />
+            </div>
             <input
-              className="flex-grow"
-              type="text"
-              name="mapStyle"
-              value={config.mapStyle}
+              type="checkbox"
+              name="fromCache"
+              checked={config.fromCache}
               onChange={(e) =>
                 setConfig((c) => {
-                  c.mapStyle = e.target.value;
+                  c.fromCache = e.target.checked;
                 })
               }
             />
-          </div>
-
-          <div className="flex gap-2 basis-1/3">
-            <label htmlFor="tileStyle">tile style url:</label>
-            <input
-              className="flex-grow"
-              type="text"
-              name="tileStyle"
-              value={config.tileStyle}
-              onChange={(e) =>
-                setConfig((c) => {
-                  c.tileStyle = e.target.value;
-                })
-              }
-            />
-          </div>
-
-          <input
-            type="checkbox"
-            name="fromCache"
-            checked={config.fromCache}
-            onChange={(e) =>
-              setConfig((c) => {
-                c.fromCache = e.target.checked;
-              })
-            }
-          />
-          <label htmlFor="fromCache">with ?data_from_cache=true</label>
-        </fieldset>
-        <button onClick={dumpToConsole}>queryRenderedFeatures</button>
+            <label htmlFor="fromCache">with ?data_from_cache=true</label>
+          </fieldset>
+          <button onClick={dumpToConsole}>queryRenderedFeatures</button>
+        </div>
+        {config.tileStyle && <Map {...config} />}
       </div>
-      {config.tileStyle && <OptimizedMap setLayerID={setLayerID} {...config} />}
+      <Logger />
     </div>
   );
 }
 
-const OptimizedMap = ({
-  mapStyle,
-  tileStyle,
-  fromCache,
-  setLayerID,
-}: ConfigType & {
-  setLayerID: React.Dispatch<React.SetStateAction<string | undefined>>;
-}) => {
+const Map = ({ mapStyle, tileStyle, fromCache }: ConfigType) => {
   const [sourceProps, setSourceProps] = useState<SourceProps>();
-  const [circleLayer, setCircleLayer] = useState<CircleLayer>();
+  const [circleLayer, setCircleLayer] = useState<Omit<CircleLayer, 'id'> >();
+
+  const setLogs = useSetAtom(loggingAtom);
 
   const baseUrl = useMemo(
     () => tileStyle.split("mym/styles")[0] as string,
@@ -119,55 +117,38 @@ const OptimizedMap = ({
         },
       });
       const data = (await res.json()) as TileStyles;
-      Object.entries(data.sources).map(([id, srcDef]) => {
-        const url = srcDef.tiles?.[0];
-        if (!url) {
-          console.error("NO TILE URL");
-          return;
-        }
-        const parts = url.split("tile/layers");
-        const tileUrl = `${baseUrl}/tile/layers${parts[1]}${
-          fromCache ? "?data_from_cache=true" : ""
-        }`;
-        setSourceProps({ id, type: "vector", tiles: [tileUrl] });
-      });
 
-      const { id, source, "source-layer": sourceLayer } = data.layers[0];
-      setLayerID(id);
-      setCircleLayer({
+      const sources = Object.entries(data.sources).map(([id, { tiles }]) => ({
         id,
-        source,
-        "source-layer": sourceLayer,
+        tiles,
+      }));
+
+      const tiles = sources[0].tiles;
+
+      if (!tiles) return console.error("NO TILE URL");
+
+      const tileUrl = tiles[0];
+
+      const tileUrlParts = tileUrl.split("tile/layers");
+
+      const tileUrlPathPart = tileUrlParts[1];
+
+      const finalTileUrl = `${baseUrl}/tile/layers${tileUrlPathPart}${
+        fromCache ? "?data_from_cache=true" : ""
+      }`;
+
+      setSourceProps({ type: "vector", tiles: [finalTileUrl] });
+
+      setCircleLayer({
+        source: "nak-source",
+        "source-layer": data.layers[0]["source-layer"],
         type: "circle",
-        paint: {
-          "circle-color": [
-            "case",
-            ["has", "rxlevel"],
-            [
-              "interpolate",
-              ["linear"],
-              ["get", "rxlevel"],
-              -100,
-              "#7FFF00",
-              -75,
-              "#DC143C",
-              -50,
-              "#008b74",
-              -25,
-              "#ff009d",
-              -0,
-              "#00eeff",
-              100,
-              "red",
-            ],
-            "black",
-          ],
-        },
+        paint: constants.styles.CIRLCE_LAYER_PAINT,
       });
     };
 
     fetchTileStyles();
-  }, [baseUrl, fromCache, setLayerID, tileStyle]);
+  }, [baseUrl, fromCache, tileStyle]);
 
   const transformRequest = useCallback((url: string) => {
     return {
@@ -179,7 +160,7 @@ const OptimizedMap = ({
   }, []);
 
   return (
-    <Map
+    <ReactMapGl
       id="mainMap"
       initialViewState={{
         longitude: 51.414178828767945,
@@ -202,25 +183,28 @@ const OptimizedMap = ({
       onData={(e) => {
         if (e.dataType === "source" && e.tile) {
           const resourceTiming = e.tile.resourceTiming?.[0];
-          if (resourceTiming) {
-            if (resourceTiming.name.includes(baseUrl)) {
-              const { x, y, z } = e.tile.tileID.canonical;
-              console.log(
-                `it took ${Math.round(
-                  resourceTiming.duration
-                )} ms to fetch {z}/{y}/{x}:{${z}}/{${x}}/{${y}}`
-              );
-            }
+          if (resourceTiming?.name?.includes(baseUrl)) {
+            const { x, y, z } = e.tile.tileID.canonical;
+
+            console.log(
+              "🚀 ~ file: App.tsx:219 ~ Map ~ resourceTiming:",
+              resourceTiming
+            );
+
+            setLogs((prevL) => {
+              const id = `{${z}}/{${x}}/{${y}}`;
+              return [...prevL, { id, time: resourceTiming.duration }];
+            });
           }
         }
       }}
     >
       {sourceProps && (
-        <Source {...sourceProps}>
-          <Layer {...circleLayer} />
+        <Source id="nak-source" {...sourceProps}>
+          {circleLayer && <Layer id="nak-layer" {...circleLayer} />}
         </Source>
       )}
-    </Map>
+    </ReactMapGl>
   );
 };
 
