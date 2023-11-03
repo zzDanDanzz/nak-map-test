@@ -9,21 +9,24 @@ function _Logger() {
   return (
     <div className="grow p-3 border-solid rounded-lg border-neutral-300 border m-1.5 flex flex-col gap-2 overflow-y-auto">
       <div className="flex justify-between">
-        <h2 className="text-lg">download logs: </h2>
+        <h2 className="text-lg">Logs: </h2>
         <button onClick={() => setLogs([])}>clear</button>
       </div>
-      <span className="text-neutral-500">(Latest at the top)</span>
+      <div className="flex flex-col">
+        <div>
+          {`z/y/x`.split("/").map((c, i) => (
+            <span key={c} className={`${colors[i]}`}>
+              {c}
+              {i !== 2 && <span className="text-black font-bold">/</span>}
+            </span>
+          ))}
+        </div>
+        <span className="text-sm">Download duration</span>
+        <span className="text-neutral-500">(Latest at the top)</span>
+      </div>
       {logs.map((l) => (
         <>
           <div className="flex flex-col">
-            <div>
-              {`z/y/x`.split("/").map((c, i) => (
-                <span key={c} className={`${colors[i]}`}>
-                  {c}
-                  {i !== 2 && <span className="text-black font-bold">/</span>}
-                </span>
-              ))}
-            </div>
             <div>
               {l.id.split("/").map((c, i) => (
                 <span key={c} className={`${colors[i]}`}>

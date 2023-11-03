@@ -12,6 +12,7 @@
     "pub-linx": "npm run build && git checkout website && rm -rf assets/* index.html vite.svg && cp -r dist/* . && rm -rf dist && git add . && git commit -m \"update website\" && git push origin website"
   },
   "dependencies": {
+    "@turf/bbox": "^6.5.0",
     "jotai": "^2.5.0",
     "mapbox-gl": "^1.13.3",
     "react": "^18.2.0",

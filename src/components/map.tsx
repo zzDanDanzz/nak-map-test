@@ -14,7 +14,13 @@ import { loggingAtom } from "../common/atoms";
 import constants from "../common/constants";
 import { ConfigType, TileStyles } from "../common/types";
 
-const Map = ({ mapStyle, tileStyle, fromCache }: ConfigType) => {
+
+const Map = ({
+  mapStyle,
+  tileStyle,
+  fromCache,
+  serviceIDRef,
+}: ConfigType & { serviceIDRef: React.MutableRefObject<string> }) => {
   const [sourceProps, setSourceProps] = useState<SourceProps>();
   const [circleLayer, setCircleLayer] = useState<Omit<CircleLayer, "id">>();
 
@@ -47,6 +53,8 @@ const Map = ({ mapStyle, tileStyle, fromCache }: ConfigType) => {
 
       const tileUrl = tiles[0];
 
+      serviceIDRef.current = tileUrl.split("tile/layers/")[1].split("@EPSG")[0];
+
       const tileUrlParts = tileUrl.split("tile/layers");
 
       const tileUrlPathPart = tileUrlParts[1];
@@ -66,7 +74,7 @@ const Map = ({ mapStyle, tileStyle, fromCache }: ConfigType) => {
     };
 
     fetchTileStyles();
-  }, [baseUrl, fromCache, tileStyle]);
+  }, [baseUrl, fromCache, serviceIDRef, tileStyle]);
 
   const transformRequest = useCallback((url: string) => {
     return {
