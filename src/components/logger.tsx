@@ -1,33 +1,46 @@
 import { useAtom } from "jotai";
-import { loggingAtom } from "../atoms";
-import { PropsWithChildren, memo } from "react";
+import { memo } from "react";
+import { loggingAtom } from "../common/atoms";
+
+const colors = ["text-red-600", "text-green-600", "text-blue-600"];
 
 function _Logger() {
   const [logs, setLogs] = useAtom(loggingAtom);
   return (
-    <div className="grow p-3 border-solid rounded-lg border-neutral-300 border m-1.5 flex flex-col gap-2">
+    <div className="grow p-3 border-solid rounded-lg border-neutral-300 border m-1.5 flex flex-col gap-2 overflow-y-auto">
       <div className="flex justify-between">
         <h2 className="text-lg">download logs: </h2>
         <button onClick={() => setLogs([])}>clear</button>
       </div>
-      {logs.map((l, i) => (
-        <div key={i} className="flex flex-col">
-          <div>
-            <Brackets>z</Brackets>/<Brackets>y</Brackets>/<Brackets>x</Brackets>
+      <span className="text-neutral-500">(Latest at the top)</span>
+      {logs.map((l) => (
+        <>
+          <div className="flex flex-col">
+            <div>
+              {`z/y/x`.split("/").map((c, i) => (
+                <span key={c} className={`${colors[i]}`}>
+                  {c}
+                  {i !== 2 && <span className="text-black font-bold">/</span>}
+                </span>
+              ))}
+            </div>
+            <div>
+              {l.id.split("/").map((c, i) => (
+                <span key={c} className={`${colors[i]}`}>
+                  {c}
+                  {i !== 2 && <span className="text-black font-bold">/</span>}
+                </span>
+              ))}
+            </div>
+            <span>duration: {Math.round(l.time)} ms</span>
           </div>
-          <div>{l.id}</div>
-          <span>{Math.round(l.time)} ms</span>
-          <div className="h-0.5 bg-neutral-300" />
-        </div>
+          <div className="h-0.5 bg-neutral-300 shrink-0" />
+        </>
       ))}
     </div>
   );
 }
 
-function Brackets({ children }: PropsWithChildren) {
-  return `{${children}}`;
-}
-
 const Logger = memo(_Logger);
 
-export default Logger
+export default Logger;

@@ -15,3 +15,10 @@ interface ILayer {
   type: string;
   paint: AnyPaint;
 }
+
+export type ConfigType = {
+  mapStyle: string;
+  tileStyle: string;
+  fromCache: boolean;
+};
+
