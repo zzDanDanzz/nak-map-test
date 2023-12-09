@@ -18,7 +18,8 @@ interface ILayer {
 
 export type ConfigType = {
   mapStyle: string;
-  tileStyle: string;
+  sourceLayer: string;
+  PBF_Url: string;
   fromCache: boolean;
 };
 

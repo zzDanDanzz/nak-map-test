@@ -3,7 +3,7 @@ import { ConfigType } from "../common/types";
 
 function ConfigForm({
   setConfig,
-  config
+  config,
 }: {
   config: ConfigType;
   setConfig: Updater<ConfigType>;
@@ -28,15 +28,30 @@ function ConfigForm({
       </div>
 
       <div className="flex gap-2 basis-1/3">
-        <label htmlFor="tileStyle">tile style url:</label>
+        <label htmlFor="PBF_Url">pbf url:</label>
         <input
           className="flex-grow"
           type="text"
-          id="tileStyle"
-          value={config.tileStyle}
+          id="PBF_Url"
+          value={config.PBF_Url}
           onChange={(e) =>
             setConfig((c) => {
-              c.tileStyle = e.target.value;
+              c.PBF_Url = e.target.value;
+            })
+          }
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <label htmlFor="sourceLayer">source layer:</label>
+        <input
+          className="flex-grow"
+          type="text"
+          id="sourceLayer"
+          value={config.sourceLayer}
+          onChange={(e) =>
+            setConfig((c) => {
+              c.sourceLayer = e.target.value;
             })
           }
         />
