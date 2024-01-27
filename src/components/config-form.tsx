@@ -67,7 +67,9 @@ function ConfigForm({
             })
           }
         />
-        <label htmlFor="fromCache"> with ?data_from_cache=true</label>
+        <label htmlFor="fromCache">
+          data_from_cache (checked = 1; unchecked = 0)
+        </label>
       </div>
     </fieldset>
   );
