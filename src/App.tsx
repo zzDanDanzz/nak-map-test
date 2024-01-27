@@ -10,7 +10,7 @@ import Map from "./components/map";
 const defaults: ConfigType = {
   mapStyle: "https://dev.map.ir/vector/styles/main/mapir-xyz-light-style.json",
   PBF_Url: "",
-  sourceLayer: "",
+  sourceLayer: "default",
   fromCache: false,
 };
 
