@@ -42,20 +42,6 @@ function ConfigForm({
         />
       </div>
 
-      <div className="flex gap-2">
-        <label htmlFor="sourceLayer">source layer:</label>
-        <input
-          className="flex-grow"
-          type="text"
-          id="sourceLayer"
-          value={config.sourceLayer}
-          onChange={(e) =>
-            setConfig((c) => {
-              c.sourceLayer = e.target.value;
-            })
-          }
-        />
-      </div>
       <div>
         <input
           type="checkbox"

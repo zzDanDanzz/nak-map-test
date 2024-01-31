@@ -8,10 +8,7 @@ import { loggingAtom } from "../common/atoms";
 import constants from "../common/constants";
 import { ConfigType } from "../common/types";
 
-const Map = ({ mapStyle, PBF_Url, sourceLayer, fromCache }: ConfigType) => {
-  // if (fromCache) {
-  //   PBF_Url += "?data_from_cache=true";
-  // }
+const Map = ({ mapStyle, PBF_Url, fromCache }: ConfigType) => {
   const setLogs = useSetAtom(loggingAtom);
 
   const transformRequest = useCallback((url: string) => {
@@ -60,9 +57,13 @@ const Map = ({ mapStyle, PBF_Url, sourceLayer, fromCache }: ConfigType) => {
       <Source
         type="vector"
         tiles={[`${PBF_Url}?data_from_cache=${fromCache ? "1" : "0"}`]}
-        id="nak-source"
+        id={constants.sourceId}
       >
-        <Layer type="circle" id="nak-layer" source-layer={sourceLayer} />
+        <Layer
+          type="circle"
+          id={constants.layerId}
+          source-layer={constants.sourceLayer}
+        />
       </Source>
     </ReactMapGl>
   );
