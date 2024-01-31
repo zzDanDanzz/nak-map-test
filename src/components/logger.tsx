@@ -28,8 +28,8 @@ function _Logger() {
         onClick={() => {
           flushSync(() => {
             setIsHidden(false);
-            mainMap?.resize();
           });
+          mainMap?.resize();
         }}
         style={{
           width: "3rem",
@@ -49,8 +49,8 @@ function _Logger() {
           onClick={() => {
             flushSync(() => {
               setIsHidden(true);
-              mainMap?.resize();
             });
+            mainMap?.resize();
           }}
         >
           hide
